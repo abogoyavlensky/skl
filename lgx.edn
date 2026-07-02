@@ -2,9 +2,9 @@
  :main "main.lg"
  :targets {:bin {:out "bin/skl"}}
  :deps {tiny-cli {:git/url "https://github.com/abogoyavlensky/tiny-cli"
-                  :git/tag "v0.2.0"}
+                  :git/tag "v0.2.1"}
         tiny-tui {:git/url "https://github.com/abogoyavlensky/tiny-tui"
-                  :git/sha "a5af93dfd8e7d40a4ac27c6e572bcdeaf7d4ba92"}}
+                  :git/sha "0.1.0"}}
  :tasks {fmt {:doc "Format source files (available actions: fix, check; default: fix)"
               :args [{:name :action
                       :type [:enum "fix" "check"]
