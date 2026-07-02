@@ -1,0 +1,6 @@
+(ns skl.core-test
+  (:require [clojure.test :refer [deftest is]]
+            [skl.core :as c]))
+
+(deftest test-greet-ok
+  (is (= "Welcome to the skl app!" (c/greet {}))))

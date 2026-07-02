@@ -1,0 +1,7 @@
+(ns skl.core)
+
+(defn greet
+  [_ctx]
+  (let [msg "Welcome to the mycliapp app!"]
+    (println msg)
+    msg))
