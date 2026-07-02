@@ -1,5 +1,9 @@
 # `skl add` Command Implementation Plan
 
+> ✅ **COMPLETED 2026-07-03** on branch `feat/skl-add-command`. All five tasks
+> done, tests/lint/build green, end-to-end verified. See the implementation
+> summary at the end of this document.
+
 > **For agentic workers:** Use executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Implement `skl add <repo-url>` — clone a git repo, let the user pick skills from its skills directory interactively (or via `--skill`), and copy them into a target directory with per-skill conflict handling.
@@ -264,16 +268,67 @@ of any widget is not an error — print a short notice and exit 0.
 
 ### Task 5: Build and end-to-end check
 
-- [ ] **Step 1: Build the binary**
+- [x] **Step 1: Build the binary**
   Run: `lgx build`
   Expected: `bin/skl` produced.
 
-- [ ] **Step 2: End-to-end against a real repo**
+- [x] **Step 2: End-to-end against a real repo**
   Run `bin/skl add <any small public skills repo or local fixture>`
   interactively once: filter, multi-select two skills, accept default
   `.agents/skills`, re-run to hit the overwrite/skip confirm.
   Expected: skills land in `.agents/skills/`, summary correct, temp clone
   removed.
 
-- [ ] **Step 3: Commit any fixes**
+- [x] **Step 3: Commit any fixes**
   `git commit -m "Fix issues found in end-to-end check"` (only if needed).
+  No code fixes were needed after the end-to-end check.
+
+---
+
+## Implementation summary (completed 2026-07-03)
+
+**Status: DONE.** `skl add` is implemented, tested, wired, built, and verified
+end-to-end. Branch: `feat/skl-add-command`.
+
+### What was built
+
+- `src/skl/skills.lg` — fs/path helpers: `expand-home`, `skills-dir`,
+  `list-skills` (dirs only, sorted, dot-entries skipped), `skill-exists?`,
+  `copy-skill!`, `remove-skill!`, `ensure-dir!`.
+- `src/skl/git.lg` — `temp-clone-dir` (collision-retry), `clone-shallow!`
+  (`git clone --depth 1`, throws with git stderr), `cleanup!` (`rm -rf`).
+- `src/skl/commands.lg` — `add*` orchestration (clone → list → select/`--skill`
+  → target/`--dir` → per-skill overwrite-confirm/copy → summary → cleanup) and
+  the thin `add!` edge handler (prints error + stderr, exits 1). `tui-opts` is
+  merged into every tiny-tui call so tests drive it headlessly.
+- `main.lg` — `add` command spec; `greet`/`skl.core` scaffold removed.
+- Tests: `skills_test`, `git_test` (local-repo fixture), `commands_test`
+  (scripted-key flows). 17 tests / 34 assertions, plus a pty-driven
+  (`pexpect`) interactive binary walkthrough.
+
+### Deviations from the plan (and why)
+
+1. **Options must precede the URL.** tiny-cli parses options before positional
+   args, so the non-interactive form is `skl add --skill X --dir Y <url>` (not
+   `<url> --skill X`). Confirmed empirically; README and smoke tests use this
+   order. (Decision approved up front.)
+2. **`try/catch` + re-throw instead of `try/finally` for clone cleanup.** In
+   let-go, a `finally` with no `catch` swallows the exception into an `#error`
+   value instead of re-raising it (verified), which would have broken the
+   exit-1 error path. `add*` cleans up on the success/cancel path and in a
+   `catch` that re-raises. Cleanup still always runs.
+3. **`os/stat` key is `:dir?`, not `:is-dir`** (the plan's pseudocode). Used the
+   real key.
+
+### Prerequisite fixes (outside the plan's file list)
+
+- `lgx.edn`: tiny-tui pin was an invalid `:git/sha "0.1.0"`; corrected to
+  `:git/tag "v0.1.0"` (nothing resolved/built before this).
+- Added `.clj-kondo/config.edn` (excludes let-go builtins `file-exists?`,
+  `mkdir`) and `.gitignore` entries for `.tmp/` and the clj-kondo cache.
+
+### Review checkpoints
+
+Each task passed a `review-with-codex` second-opinion review. Findings
+addressed: ignore generated artifacts (gitignore); harden `temp-clone-dir`
+against collisions. The Task 3 "P1: wire the CLI" finding was Task 4 itself.
