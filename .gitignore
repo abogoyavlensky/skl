@@ -11,3 +11,6 @@ lsp/
 .env
 .nrepl-port
 .clj-pulse
+.tmp/
+.clj-kondo/*
+!.clj-kondo/config.edn
