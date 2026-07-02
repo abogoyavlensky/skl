@@ -117,7 +117,7 @@ of any widget is not an error — print a short notice and exit 0.
 - Create: `src/skl/skills.lg`
 - Test: `test/skl/skills_test.lg`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
   In `test/skl/skills_test.lg`, using a fresh dir under `os/temp-dir` per test:
   - `expand-home`: `"~/x"` → `<$HOME>/x`; `".agents/skills"` unchanged;
     absolute path unchanged. Unset-HOME case: skip if impractical to unset,
@@ -131,21 +131,21 @@ of any widget is not an error — print a short notice and exit 0.
   - `remove-skill!`: removes an existing skill dir.
   - `ensure-dir!`: creates nested dirs; idempotent when dir exists.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
   Run: `lgx test`
   Expected: FAIL (namespace `skl.skills` not found).
 
-- [ ] **Step 3: Implement `src/skl/skills.lg`**
+- [x] **Step 3: Implement `src/skl/skills.lg`**
   Follow wtr idioms (`os/ls`, `os/stat`, `os/sh`, `file-exists?`, `mkdir`).
   `list-skills` filters `os/ls` entries by `(:is-dir (os/stat ...))` and sorts.
   `copy-skill!` shells `cp -R src dst`, throws `ex-info` with stderr on
   non-zero exit. `remove-skill!` shells `rm -rf`. `ensure-dir!` wraps `mkdir`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
   Run: `lgx test`
   Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   `git commit -m "Add skl.skills filesystem helpers"`
 
 ### Task 2: Git clone helper (`skl.git`)
@@ -154,7 +154,7 @@ of any widget is not an error — print a short notice and exit 0.
 - Create: `src/skl/git.lg`
 - Test: `test/skl/git_test.lg`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
   In the test, create a local source repo under `os/temp-dir`: `git init`,
   add `skills/demo/SKILL.md`, commit (set `user.email`/`user.name` via
   `git -c` or local config so commit works in CI). Then:
@@ -164,11 +164,11 @@ of any widget is not an error — print a short notice and exit 0.
     `ex-info` whose data carries git's stderr.
   - `cleanup!` removes the clone dir.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
   Run: `lgx test`
   Expected: FAIL (namespace `skl.git` not found).
 
-- [ ] **Step 3: Implement `src/skl/git.lg`**
+- [x] **Step 3: Implement `src/skl/git.lg`**
   `temp-clone-dir` builds a unique path under `(os/temp-dir)` (suffix from
   a counter/random-ish source available in let-go — e.g. current pid or a
   timestamp via `os/sh date +%s%N` if nothing simpler exists; keep it one
@@ -176,11 +176,11 @@ of any widget is not an error — print a short notice and exit 0.
   `git clone --depth 1 <url> <dir>` via `os/sh`, throws `ex-info` with
   stderr on non-zero exit, returns the dir. `cleanup!` = `rm -rf`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
   Run: `lgx test`
   Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   `git commit -m "Add skl.git shallow clone helper"`
 
 ### Task 3: `add!` command flow (`skl.commands`)
