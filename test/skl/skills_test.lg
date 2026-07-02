@@ -1,0 +1,87 @@
+(ns skl.skills-test
+  (:require [clojure.test :refer [deftest is testing]]
+            [os :as os]
+            [skl.skills :as skills]))
+
+(defn- tmpdir
+  "Create and return a fresh temp directory path under os/temp-dir."
+  []
+  (let [d (str (os/temp-dir) "/skl-skills-test-" (rand-int 1000000))]
+    (mkdir d)
+    d))
+
+(deftest expand-home-expands-leading-tilde
+  (let [home (os/getenv "HOME")]
+    (testing "~/ prefix expands to $HOME"
+      (is (= (str home "/x") (skills/expand-home "~/x"))))
+    (testing "a relative path is unchanged"
+      (is (= ".agents/skills" (skills/expand-home ".agents/skills"))))
+    (testing "an absolute path is unchanged"
+      (is (= "/tmp/foo" (skills/expand-home "/tmp/foo"))))))
+
+(deftest expand-home-throws-when-home-unset
+  (let [orig (os/getenv "HOME")]
+    (try
+      (os/setenv "HOME" "")
+      (is (= :threw (try (skills/expand-home "~/x")
+                         (catch Exception _ :threw))))
+      (finally
+        (os/setenv "HOME" orig)))))
+
+(deftest list-skills-returns-sorted-dir-names
+  (let [tmp (tmpdir)
+        dir (str tmp "/skills")]
+    (mkdir (str dir "/b"))
+    (mkdir (str dir "/a"))
+    (spit (str dir "/b/SKILL.md") "b")
+    (spit (str dir "/a/SKILL.md") "a")
+    (spit (str dir "/readme.txt") "stray")
+    (testing "directories only, sorted; stray files skipped"
+      (is (= ["a" "b"] (skills/list-skills dir))))))
+
+(deftest list-skills-empty-dir-returns-empty
+  (let [tmp (tmpdir)
+        dir (str tmp "/skills")]
+    (mkdir dir)
+    (is (= [] (skills/list-skills dir)))))
+
+(deftest list-skills-missing-dir-throws
+  (let [tmp (tmpdir)]
+    (is (= :threw (try (skills/list-skills (str tmp "/nope"))
+                       (catch Exception _ :threw))))))
+
+(deftest skill-exists?-only-true-for-a-directory
+  (let [tmp (tmpdir)]
+    (mkdir (str tmp "/alpha"))
+    (spit (str tmp "/afile") "x")
+    (is (true? (skills/skill-exists? tmp "alpha")))
+    (is (false? (skills/skill-exists? tmp "afile")))
+    (is (false? (skills/skill-exists? tmp "missing")))))
+
+(deftest copy-skill!-copies-nested-content
+  (let [tmp (tmpdir)
+        src (str tmp "/src/demo")
+        dst (str tmp "/target/demo")]
+    (mkdir (str src "/nested"))
+    (spit (str src "/nested/file.txt") "hello")
+    (mkdir (str tmp "/target"))
+    (skills/copy-skill! src dst)
+    (is (file-exists? (str dst "/nested/file.txt")))
+    (is (= "hello" (slurp (str dst "/nested/file.txt"))))))
+
+(deftest remove-skill!-removes-a-directory
+  (let [tmp (tmpdir)
+        d (str tmp "/gone")]
+    (mkdir d)
+    (spit (str d "/f") "x")
+    (skills/remove-skill! d)
+    (is (not (file-exists? d)))))
+
+(deftest ensure-dir!-creates-nested-and-is-idempotent
+  (let [tmp (tmpdir)
+        nested (str tmp "/a/b/c")]
+    (skills/ensure-dir! nested)
+    (is (file-exists? nested))
+    (testing "calling again on an existing dir does not throw"
+      (skills/ensure-dir! nested)
+      (is (file-exists? nested)))))

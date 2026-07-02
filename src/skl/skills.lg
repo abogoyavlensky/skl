@@ -1,0 +1,69 @@
+(ns skl.skills
+  (:require [clojure.string :as str]
+            [os :as os]))
+
+(defn expand-home
+  "Expand a leading `~/` to `$HOME`; other paths are returned unchanged.
+   Throws ex-info when `$HOME` is unset (let-go returns \"\" for missing env
+   vars), matching wtr's config-path behaviour."
+  [path]
+  (if (str/starts-with? path "~/")
+    (let [home (os/getenv "HOME")]
+      (when (str/blank? home)
+        (throw (ex-info "HOME environment variable is not set" {})))
+      (str home "/" (subs path 2)))
+    path))
+
+(defn skills-dir
+  "Absolute path to the skills directory inside a clone: `clone-path` joined
+   with the `--path` value. A blank path or `.` means the clone root itself."
+  [clone-path path]
+  (if (or (str/blank? (or path "")) (= path "."))
+    clone-path
+    (str clone-path "/" path)))
+
+(defn list-skills
+  "Names of the subdirectories of `dir`, sorted, as a vector. Only directories
+   are listed; regular files and dot-entries (e.g. `.git`, so `--path .` works)
+   are skipped. Throws ex-info when `dir` is missing or is not a directory."
+  [dir]
+  (when-not (:dir? (os/stat dir))
+    (throw (ex-info (str "Skills directory not found: " dir) {:dir dir})))
+  (->> (os/ls dir)
+       (filter (fn [entry]
+                 (and (not (str/starts-with? entry "."))
+                      (:dir? (os/stat (str dir "/" entry))))))
+       (sort)
+       (vec)))
+
+(defn skill-exists?
+  "True when `<target>/<name>` exists as a directory."
+  [target name]
+  (boolean (:dir? (os/stat (str target "/" name)))))
+
+(defn copy-skill!
+  "Copy the skill directory `src` to `dst` via `cp -R`. Throws ex-info carrying
+   cp's stderr on non-zero exit."
+  [src dst]
+  (let [result (os/sh "cp" "-R" src dst)]
+    (when-not (zero? (:exit result))
+      (throw (ex-info (str "Failed to copy skill from " src)
+                      {:stderr (:err result)})))
+    result))
+
+(defn remove-skill!
+  "Remove the directory `path` via `rm -rf`. Throws ex-info carrying stderr on
+   non-zero exit."
+  [path]
+  (let [result (os/sh "rm" "-rf" path)]
+    (when-not (zero? (:exit result))
+      (throw (ex-info (str "Failed to remove " path)
+                      {:stderr (:err result)})))
+    result))
+
+(defn ensure-dir!
+  "Create `dir` (and any missing parents); a no-op when it already exists.
+   Returns `dir`."
+  [dir]
+  (mkdir dir)
+  dir)
