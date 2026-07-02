@@ -2,6 +2,6 @@
 
 (defn greet
   [_ctx]
-  (let [msg "Welcome to the mycliapp app!"]
+  (let [msg "Welcome to the skl app!"]
     (println msg)
     msg))
