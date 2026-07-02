@@ -1,0 +1,34 @@
+(ns skl.git
+  (:require [os :as os]))
+
+(defn temp-clone-dir
+  "A unique, not-yet-existing path under os/temp-dir for a fresh clone. Retries
+   on the rare collision with a leftover or concurrent clone directory, so the
+   returned path is guaranteed absent at return time (git clone then creates
+   it). Throws if it cannot find a free path after many attempts."
+  []
+  (loop [attempt 0]
+    (let [dir (str (os/temp-dir) "/skl-clone-" (rand-int 1000000000))]
+      (cond
+        (not (file-exists? dir)) dir
+        (< attempt 100) (recur (inc attempt))
+        :else (throw (ex-info "Could not allocate a unique temp clone directory"
+                              {:dir dir}))))))
+
+(defn clone-shallow!
+  "Shallow-clone `url` into a fresh temp directory and return that directory.
+   Throws ex-info carrying git's stderr on non-zero exit."
+  [url]
+  (let [dir (temp-clone-dir)
+        result (os/sh "git" "clone" "--depth" "1" url dir)]
+    (when-not (zero? (:exit result))
+      (throw (ex-info (str "Failed to clone " url)
+                      {:stderr (:err result)})))
+    dir))
+
+(defn cleanup!
+  "Remove a clone directory (`rm -rf`). A no-op for a nil path, and it ignores
+   the exit status, so it is safe to call from a finally block."
+  [dir]
+  (when dir
+    (os/sh "rm" "-rf" dir)))

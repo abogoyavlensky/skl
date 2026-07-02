@@ -1,0 +1,44 @@
+(ns skl.git-test
+  (:require [clojure.test :refer [deftest is testing]]
+            [os :as os]
+            [skl.git :as git]))
+
+(defn- init-source-repo!
+  "Create a local git repo containing skills/demo/SKILL.md; return its path.
+   Sets user.name/email locally so the commit works in a clean CI environment."
+  []
+  (let [dir (str (os/temp-dir) "/skl-git-src-" (rand-int 1000000))]
+    (mkdir (str dir "/skills/demo"))
+    (spit (str dir "/skills/demo/SKILL.md") "# demo skill\n")
+    (os/sh "git" "-C" dir "init" "-q")
+    (os/sh "git" "-C" dir "config" "user.email" "test@example.com")
+    (os/sh "git" "-C" dir "config" "user.name" "skl test")
+    (os/sh "git" "-C" dir "add" "-A")
+    (os/sh "git" "-C" dir "-c" "commit.gpgsign=false" "commit" "-q" "-m" "init")
+    dir))
+
+(deftest clone-shallow!-clones-a-local-repo
+  (let [src (init-source-repo!)
+        clone (git/clone-shallow! src)]
+    (try
+      (testing "the committed skill file is present in the clone"
+        (is (file-exists? (str clone "/skills/demo/SKILL.md"))))
+      (finally
+        (git/cleanup! clone)
+        (os/sh "rm" "-rf" src)))))
+
+(deftest clone-shallow!-throws-on-bad-url
+  (let [bogus (str (os/temp-dir) "/skl-git-nonexistent-" (rand-int 1000000))
+        outcome (try (git/clone-shallow! bogus)
+                     (catch Exception e {:threw? true
+                                         :data (ex-data e)}))]
+    (is (:threw? outcome))
+    (testing "ex-data carries git's stderr"
+      (is (seq (:stderr (:data outcome)))))))
+
+(deftest cleanup!-removes-the-clone-dir
+  (let [d (str (os/temp-dir) "/skl-git-cleanup-" (rand-int 1000000))]
+    (mkdir d)
+    (spit (str d "/f") "x")
+    (git/cleanup! d)
+    (is (not (file-exists? d)))))

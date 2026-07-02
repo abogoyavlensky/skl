@@ -1,0 +1,137 @@
+(ns skl.commands
+  (:require [clojure.string :as str]
+            [os :as os]
+            [skl.git :as git]
+            [skl.skills :as skills]
+            [tiny-tui.core :as tui]))
+
+(defn- resolve-skills
+  "Which skills to install. With `skill-name`, exactly that one (throws, listing
+   the available names, when it is absent). Otherwise an interactive filterable
+   multi-select over `available`, returning the chosen names, `nil` on cancel,
+   or `[]` on an empty submit."
+  [available skill-name tui-opts]
+  (if (seq skill-name)
+    (if (some #{skill-name} available)
+      [skill-name]
+      (throw (ex-info (str "Skill '" skill-name "' not found. Available: "
+                           (str/join ", " available))
+                      {:skill skill-name
+                       :available available})))
+    (tui/multi-select (merge {:title "Select skills to install"
+                              :items available
+                              :item->text identity
+                              :filterable? true
+                              :inline? true}
+                             tui-opts))))
+
+(defn- resolve-target
+  "The install target dir. With `dir-opt`, use it; otherwise prompt (prefilled
+   with `.agents/skills`). Returns the `~/`-expanded path, or `nil` on cancel."
+  [dir-opt tui-opts]
+  (let [raw (if (seq dir-opt)
+              dir-opt
+              (tui/input (merge {:title "Install skills to"
+                                 :value ".agents/skills"
+                                 :validate (fn [t]
+                                             (when (str/blank? t)
+                                               "Target directory can't be empty"))}
+                                tui-opts)))]
+    (when (seq raw)
+      (skills/expand-home raw))))
+
+(defn- install-skill!
+  "Install one skill from `src-dir/<skill>` into `target/<skill>`. Prompts to
+   overwrite when the target already exists (decline skips it). Returns an
+   outcome map {:skill name :status :installed|:overwritten|:skipped}."
+  [src-dir target skill tui-opts]
+  (let [src (str src-dir "/" skill)
+        dst (str target "/" skill)]
+    (if (skills/skill-exists? target skill)
+      (if (tui/confirm (merge {:title (str "Skill '" skill "' already exists")
+                               :message (str "Overwrite " dst "?")}
+                              tui-opts))
+        (do
+          (skills/remove-skill! dst)
+          (skills/copy-skill! src dst)
+          {:skill skill
+           :status :overwritten})
+        {:skill skill
+         :status :skipped})
+      (do
+        (skills/copy-skill! src dst)
+        {:skill skill
+         :status :installed}))))
+
+(defn- print-summary!
+  "Print one line per skill outcome under the target dir."
+  [outcomes target]
+  (println (str "Target: " target))
+  (doseq [{:keys [skill status]} outcomes]
+    (println (str "  " skill ": " (name status)))))
+
+(defn- run-flow!
+  "Steps 2-6 of the flow against an already-cloned `clone` dir: list skills
+   under `--path`, resolve the selection and target, then copy each skill
+   (asking before overwriting). Returns the vector of per-skill outcome maps,
+   or `[]` when the user cancels. Throws ex-info on failure."
+  [clone opts tui-opts]
+  (let [src-dir (skills/skills-dir clone (:path opts))
+        available (skills/list-skills src-dir)]
+    (when (empty? available)
+      (throw (ex-info (str "No skills found in " src-dir
+                           " (check the --path value).")
+                      {:dir src-dir})))
+    (let [selected (resolve-skills available (:skill opts) tui-opts)]
+      (if (empty? selected)
+        (do (println "Nothing selected.") [])
+        (let [target (resolve-target (:dir opts) tui-opts)]
+          (if (nil? target)
+            (do (println "Cancelled.") [])
+            (do
+              (skills/ensure-dir! target)
+              (let [outcomes (mapv (fn [skill]
+                                     (install-skill! src-dir target skill
+                                                     tui-opts))
+                                   selected)]
+                (print-summary! outcomes target)
+                outcomes))))))))
+
+(defn add*
+  "Core `skl add` flow, decoupled from process exit so tests can drive it.
+   `tui-opts` is merged into every tiny-tui call (tests pass `:screen false`
+   plus scripted `:read-key-fn`/`:render-fn`; production passes `{}`).
+
+   Clones the repo, runs the flow, and always removes the temp clone —
+   afterwards on success/cancel, in the catch before re-raising on failure.
+   (A bare try/finally can't be used: in let-go a finally with no catch
+   swallows the exception into an #error value instead of re-raising it.)
+   Returns the vector of per-skill outcome maps, or `[]` when the user cancels.
+   Throws ex-info on failure (bad url, no skills, unknown --skill, copy error);
+   the caller prints and exits."
+  [ctx tui-opts]
+  (let [opts (:opts ctx)
+        url (:url (:args ctx))
+        clone (git/clone-shallow! url)]
+    (try
+      (let [result (run-flow! clone opts tui-opts)]
+        (git/cleanup! clone)
+        result)
+      (catch Exception e
+        (git/cleanup! clone)
+        (throw e)))))
+
+(defn add!
+  "tiny-cli handler for `skl add`. On failure prints the error (plus any
+   captured git/cp stderr) to stderr and exits 1. User cancellation is not an
+   error: the flow prints a short notice and returns normally (exit 0)."
+  [ctx]
+  (try
+    (add* ctx {})
+    (catch Exception e
+      (binding [*out* *err*]
+        (println "Error:" (ex-message e))
+        (let [stderr (:stderr (ex-data e))]
+          (when (seq stderr)
+            (print stderr))))
+      (os/exit 1))))

@@ -1,5 +1,9 @@
 # `skl add` Command Implementation Plan
 
+> ✅ **COMPLETED 2026-07-03** on branch `feat/skl-add-command`. All five tasks
+> done, tests/lint/build green, end-to-end verified. See the implementation
+> summary at the end of this document.
+
 > **For agentic workers:** Use executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Implement `skl add <repo-url>` — clone a git repo, let the user pick skills from its skills directory interactively (or via `--skill`), and copy them into a target directory with per-skill conflict handling.
@@ -117,7 +121,7 @@ of any widget is not an error — print a short notice and exit 0.
 - Create: `src/skl/skills.lg`
 - Test: `test/skl/skills_test.lg`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
   In `test/skl/skills_test.lg`, using a fresh dir under `os/temp-dir` per test:
   - `expand-home`: `"~/x"` → `<$HOME>/x`; `".agents/skills"` unchanged;
     absolute path unchanged. Unset-HOME case: skip if impractical to unset,
@@ -131,21 +135,21 @@ of any widget is not an error — print a short notice and exit 0.
   - `remove-skill!`: removes an existing skill dir.
   - `ensure-dir!`: creates nested dirs; idempotent when dir exists.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
   Run: `lgx test`
   Expected: FAIL (namespace `skl.skills` not found).
 
-- [ ] **Step 3: Implement `src/skl/skills.lg`**
+- [x] **Step 3: Implement `src/skl/skills.lg`**
   Follow wtr idioms (`os/ls`, `os/stat`, `os/sh`, `file-exists?`, `mkdir`).
   `list-skills` filters `os/ls` entries by `(:is-dir (os/stat ...))` and sorts.
   `copy-skill!` shells `cp -R src dst`, throws `ex-info` with stderr on
   non-zero exit. `remove-skill!` shells `rm -rf`. `ensure-dir!` wraps `mkdir`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
   Run: `lgx test`
   Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   `git commit -m "Add skl.skills filesystem helpers"`
 
 ### Task 2: Git clone helper (`skl.git`)
@@ -154,7 +158,7 @@ of any widget is not an error — print a short notice and exit 0.
 - Create: `src/skl/git.lg`
 - Test: `test/skl/git_test.lg`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
   In the test, create a local source repo under `os/temp-dir`: `git init`,
   add `skills/demo/SKILL.md`, commit (set `user.email`/`user.name` via
   `git -c` or local config so commit works in CI). Then:
@@ -164,11 +168,11 @@ of any widget is not an error — print a short notice and exit 0.
     `ex-info` whose data carries git's stderr.
   - `cleanup!` removes the clone dir.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
   Run: `lgx test`
   Expected: FAIL (namespace `skl.git` not found).
 
-- [ ] **Step 3: Implement `src/skl/git.lg`**
+- [x] **Step 3: Implement `src/skl/git.lg`**
   `temp-clone-dir` builds a unique path under `(os/temp-dir)` (suffix from
   a counter/random-ish source available in let-go — e.g. current pid or a
   timestamp via `os/sh date +%s%N` if nothing simpler exists; keep it one
@@ -176,11 +180,11 @@ of any widget is not an error — print a short notice and exit 0.
   `git clone --depth 1 <url> <dir>` via `os/sh`, throws `ex-info` with
   stderr on non-zero exit, returns the dir. `cleanup!` = `rm -rf`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
   Run: `lgx test`
   Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   `git commit -m "Add skl.git shallow clone helper"`
 
 ### Task 3: `add!` command flow (`skl.commands`)
@@ -189,7 +193,7 @@ of any widget is not an error — print a short notice and exit 0.
 - Create: `src/skl/commands.lg`
 - Test: `test/skl/commands_test.lg`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
   Structure `add!` as `(add! ctx)` calling `(add* ctx tui-opts)`, where
   `tui-opts` is merged into every tiny-tui call — tests pass
   `{:screen false :read-key-fn <scripted> :render-fn (fn [_] nil)}`.
@@ -210,11 +214,11 @@ of any widget is not an error — print a short notice and exit 0.
   Scripted `read-key-fn` pattern: an atom holding a queue of keys, fn pops
   one per call (see tiny-tui `test/tiny_tui/core_test.lg`).
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
   Run: `lgx test`
   Expected: FAIL (namespace `skl.commands` not found).
 
-- [ ] **Step 3: Implement `src/skl/commands.lg`**
+- [x] **Step 3: Implement `src/skl/commands.lg`**
   `add*` implements the Design flow §Flow steps 1–7: clone → list →
   select (or `--skill`) → target dir (or `--dir`) → per-skill
   conflict/copy loop → summary → cleanup in `finally`. Collect per-skill
@@ -223,11 +227,11 @@ of any widget is not an error — print a short notice and exit 0.
   tiny-cli handler: calls `add*` with `{}`, catches `ex-info`, prints
   message + stderr from ex-data to `*err*`, exits 1.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
   Run: `lgx test`
   Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   `git commit -m "Add skl add command flow"`
 
 ### Task 4: Wire the CLI, drop scaffold
@@ -236,7 +240,7 @@ of any widget is not an error — print a short notice and exit 0.
 - Modify: `main.lg`, `README.md`
 - Delete: `src/skl/core.lg`, `test/skl/core_test.lg`
 
-- [ ] **Step 1: Update `main.lg`**
+- [x] **Step 1: Update `main.lg`**
   Replace the `greet` command with `add`:
   - `:args` — `{:key :url :doc "Git repository url." :validate non-blank}`.
   - `:opts` — `skill` (`-s/--skill`, `:value? true`), `dir`
@@ -245,34 +249,86 @@ of any widget is not an error — print a short notice and exit 0.
   - `:run c/add!`, require `skl.commands`.
   Delete `src/skl/core.lg` and `test/skl/core_test.lg`.
 
-- [ ] **Step 2: Update README usage section**
+- [x] **Step 2: Update README usage section**
   Replace `greet` examples with `skl add` usage: interactive form,
   `--skill`/`--dir`/`--path` form.
 
-- [ ] **Step 3: Verify checks pass**
+- [x] **Step 3: Verify checks pass**
   Run: `lgx check`
   Expected: fmt, lint, and tests all pass.
 
-- [ ] **Step 4: Smoke-test manually**
+- [x] **Step 4: Smoke-test manually**
   Run: `lgx run -- add --help` (shows command help) and
-  `lgx run -- add <local-fixture-repo> --skill alpha --dir /tmp/skl-smoke`
+  `lgx run -- add --skill alpha --dir /tmp/skl-smoke <local-fixture-repo>`
+  (options precede the url — tiny-cli parses options before positionals).
   Expected: installs the skill, prints summary.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   `git commit -m "Wire skl add command, drop greet scaffold"`
 
 ### Task 5: Build and end-to-end check
 
-- [ ] **Step 1: Build the binary**
+- [x] **Step 1: Build the binary**
   Run: `lgx build`
   Expected: `bin/skl` produced.
 
-- [ ] **Step 2: End-to-end against a real repo**
+- [x] **Step 2: End-to-end against a real repo**
   Run `bin/skl add <any small public skills repo or local fixture>`
   interactively once: filter, multi-select two skills, accept default
   `.agents/skills`, re-run to hit the overwrite/skip confirm.
   Expected: skills land in `.agents/skills/`, summary correct, temp clone
   removed.
 
-- [ ] **Step 3: Commit any fixes**
+- [x] **Step 3: Commit any fixes**
   `git commit -m "Fix issues found in end-to-end check"` (only if needed).
+  No code fixes were needed after the end-to-end check.
+
+---
+
+## Implementation summary (completed 2026-07-03)
+
+**Status: DONE.** `skl add` is implemented, tested, wired, built, and verified
+end-to-end. Branch: `feat/skl-add-command`.
+
+### What was built
+
+- `src/skl/skills.lg` — fs/path helpers: `expand-home`, `skills-dir`,
+  `list-skills` (dirs only, sorted, dot-entries skipped), `skill-exists?`,
+  `copy-skill!`, `remove-skill!`, `ensure-dir!`.
+- `src/skl/git.lg` — `temp-clone-dir` (collision-retry), `clone-shallow!`
+  (`git clone --depth 1`, throws with git stderr), `cleanup!` (`rm -rf`).
+- `src/skl/commands.lg` — `add*` orchestration (clone → list → select/`--skill`
+  → target/`--dir` → per-skill overwrite-confirm/copy → summary → cleanup) and
+  the thin `add!` edge handler (prints error + stderr, exits 1). `tui-opts` is
+  merged into every tiny-tui call so tests drive it headlessly.
+- `main.lg` — `add` command spec; `greet`/`skl.core` scaffold removed.
+- Tests: `skills_test`, `git_test` (local-repo fixture), `commands_test`
+  (scripted-key flows). 17 tests / 34 assertions, plus a pty-driven
+  (`pexpect`) interactive binary walkthrough.
+
+### Deviations from the plan (and why)
+
+1. **Options must precede the URL.** tiny-cli parses options before positional
+   args, so the non-interactive form is `skl add --skill X --dir Y <url>` (not
+   `<url> --skill X`). Confirmed empirically; README and smoke tests use this
+   order. (Decision approved up front.)
+2. **`try/catch` + re-throw instead of `try/finally` for clone cleanup.** In
+   let-go, a `finally` with no `catch` swallows the exception into an `#error`
+   value instead of re-raising it (verified), which would have broken the
+   exit-1 error path. `add*` cleans up on the success/cancel path and in a
+   `catch` that re-raises. Cleanup still always runs.
+3. **`os/stat` key is `:dir?`, not `:is-dir`** (the plan's pseudocode). Used the
+   real key.
+
+### Prerequisite fixes (outside the plan's file list)
+
+- `lgx.edn`: tiny-tui pin was an invalid `:git/sha "0.1.0"`; corrected to
+  `:git/tag "v0.1.0"` (nothing resolved/built before this).
+- Added `.clj-kondo/config.edn` (excludes let-go builtins `file-exists?`,
+  `mkdir`) and `.gitignore` entries for `.tmp/` and the clj-kondo cache.
+
+### Review checkpoints
+
+Each task passed a `review-with-codex` second-opinion review. Findings
+addressed: ignore generated artifacts (gitignore); harden `temp-clone-dir`
+against collisions. The Task 3 "P1: wire the CLI" finding was Task 4 itself.

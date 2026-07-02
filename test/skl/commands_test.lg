@@ -1,0 +1,124 @@
+(ns skl.commands-test
+  (:require [clojure.string :as str]
+            [clojure.test :refer [deftest is testing]]
+            [os :as os]
+            [skl.commands :as cmds]))
+
+(defn- scripted
+  "Read-key fn that returns the scripted messages one by one, then nil (EOF)."
+  [msgs]
+  (let [q (atom (seq msgs))]
+    (fn []
+      (let [m (first @q)]
+        (swap! q rest)
+        m))))
+
+(defn- make-source-repo!
+  "Create a local git repo with a skills/<name>/SKILL.md per name; return path."
+  [skill-names]
+  (let [dir (str (os/temp-dir) "/skl-cmd-src-" (rand-int 1000000000))]
+    (doseq [s skill-names]
+      (mkdir (str dir "/skills/" s))
+      (spit (str dir "/skills/" s "/SKILL.md") (str "# " s "\n")))
+    (os/sh "git" "-C" dir "init" "-q")
+    (os/sh "git" "-C" dir "config" "user.email" "test@example.com")
+    (os/sh "git" "-C" dir "config" "user.name" "skl test")
+    (os/sh "git" "-C" dir "add" "-A")
+    (os/sh "git" "-C" dir "-c" "commit.gpgsign=false" "commit" "-q" "-m" "init")
+    dir))
+
+(defn- fresh-target []
+  (str (os/temp-dir) "/skl-cmd-target-" (rand-int 1000000000)))
+
+(def ^:private quiet {:screen false
+                      :render-fn (fn [_] nil)})
+
+(deftest add-with-skill-and-dir-installs-one
+  (let [src (make-source-repo! ["alpha" "beta"])
+        target (fresh-target)
+        ctx {:args {:url src}
+             :opts {:skill "alpha"
+                    :path "skills"
+                    :dir target}}]
+    (try
+      (let [outcomes (cmds/add* ctx {})]
+        (is (= [{:skill "alpha"
+                 :status :installed}] outcomes))
+        (is (file-exists? (str target "/alpha/SKILL.md")))
+        (testing "unselected skills are not installed"
+          (is (not (file-exists? (str target "/beta"))))))
+      (finally
+        (os/sh "rm" "-rf" src target)))))
+
+(deftest add-with-unknown-skill-throws-listing-available
+  (let [src (make-source-repo! ["alpha" "beta"])
+        target (fresh-target)
+        ctx {:args {:url src}
+             :opts {:skill "missing"
+                    :path "skills"
+                    :dir target}}]
+    (try
+      (let [outcome (try (cmds/add* ctx {})
+                         (catch Exception e {:msg (ex-message e)}))]
+        (is (contains? outcome :msg))
+        (is (str/includes? (:msg outcome) "alpha"))
+        (is (str/includes? (:msg outcome) "beta")))
+      (finally
+        (os/sh "rm" "-rf" src target)))))
+
+(deftest add-interactive-multi-select-installs-chosen
+  (let [src (make-source-repo! ["alpha" "beta"])
+        target (fresh-target)
+        ctx {:args {:url src}
+             :opts {:path "skills"
+                    :dir target}}
+        ;; cursor starts on alpha; down -> beta, space toggles it, enter submits
+        tui-opts (assoc quiet :read-key-fn (scripted [:down " " :enter]))]
+    (try
+      (let [outcomes (cmds/add* ctx tui-opts)]
+        (is (= [{:skill "beta"
+                 :status :installed}] outcomes))
+        (is (file-exists? (str target "/beta/SKILL.md")))
+        (is (not (file-exists? (str target "/alpha")))))
+      (finally
+        (os/sh "rm" "-rf" src target)))))
+
+(deftest add-conflict-overwrite-replaces-existing
+  (let [src (make-source-repo! ["alpha"])
+        target (fresh-target)]
+    (mkdir (str target "/alpha"))
+    (spit (str target "/alpha/OLD.md") "old")
+    (let [ctx {:args {:url src}
+               :opts {:skill "alpha"
+                      :path "skills"
+                      :dir target}}
+          tui-opts (assoc quiet :read-key-fn (scripted ["y"]))]
+      (try
+        (let [outcomes (cmds/add* ctx tui-opts)]
+          (is (= [{:skill "alpha"
+                   :status :overwritten}] outcomes))
+          (testing "new content is present, stale files are gone"
+            (is (file-exists? (str target "/alpha/SKILL.md")))
+            (is (not (file-exists? (str target "/alpha/OLD.md"))))))
+        (finally
+          (os/sh "rm" "-rf" src target))))))
+
+(deftest add-conflict-decline-skips-and-keeps-existing
+  (let [src (make-source-repo! ["alpha"])
+        target (fresh-target)]
+    (mkdir (str target "/alpha"))
+    (spit (str target "/alpha/OLD.md") "old")
+    (let [ctx {:args {:url src}
+               :opts {:skill "alpha"
+                      :path "skills"
+                      :dir target}}
+          tui-opts (assoc quiet :read-key-fn (scripted ["n"]))]
+      (try
+        (let [outcomes (cmds/add* ctx tui-opts)]
+          (is (= [{:skill "alpha"
+                   :status :skipped}] outcomes))
+          (testing "existing skill is untouched, new content not copied"
+            (is (file-exists? (str target "/alpha/OLD.md")))
+            (is (not (file-exists? (str target "/alpha/SKILL.md"))))))
+        (finally
+          (os/sh "rm" "-rf" src target))))))
