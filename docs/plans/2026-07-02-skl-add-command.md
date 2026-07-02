@@ -236,7 +236,7 @@ of any widget is not an error — print a short notice and exit 0.
 - Modify: `main.lg`, `README.md`
 - Delete: `src/skl/core.lg`, `test/skl/core_test.lg`
 
-- [ ] **Step 1: Update `main.lg`**
+- [x] **Step 1: Update `main.lg`**
   Replace the `greet` command with `add`:
   - `:args` — `{:key :url :doc "Git repository url." :validate non-blank}`.
   - `:opts` — `skill` (`-s/--skill`, `:value? true`), `dir`
@@ -245,20 +245,21 @@ of any widget is not an error — print a short notice and exit 0.
   - `:run c/add!`, require `skl.commands`.
   Delete `src/skl/core.lg` and `test/skl/core_test.lg`.
 
-- [ ] **Step 2: Update README usage section**
+- [x] **Step 2: Update README usage section**
   Replace `greet` examples with `skl add` usage: interactive form,
   `--skill`/`--dir`/`--path` form.
 
-- [ ] **Step 3: Verify checks pass**
+- [x] **Step 3: Verify checks pass**
   Run: `lgx check`
   Expected: fmt, lint, and tests all pass.
 
-- [ ] **Step 4: Smoke-test manually**
+- [x] **Step 4: Smoke-test manually**
   Run: `lgx run -- add --help` (shows command help) and
-  `lgx run -- add <local-fixture-repo> --skill alpha --dir /tmp/skl-smoke`
+  `lgx run -- add --skill alpha --dir /tmp/skl-smoke <local-fixture-repo>`
+  (options precede the url — tiny-cli parses options before positionals).
   Expected: installs the skill, prints summary.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   `git commit -m "Wire skl add command, drop greet scaffold"`
 
 ### Task 5: Build and end-to-end check

@@ -1,7 +1,0 @@
-(ns skl.core)
-
-(defn greet
-  [_ctx]
-  (let [msg "Welcome to the skl app!"]
-    (println msg)
-    msg))

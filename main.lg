@@ -1,14 +1,38 @@
 (ns skl.main
-  (:require [skl.core :as c]
+  (:require [skl.commands :as c]
             [tiny-cli.core :as cli]))
+
+(defn- non-blank?
+  [s]
+  (and s (not= "" s)))
 
 (def app
   {:name "skl"
    :version "0.1.0"
    :doc "A minimal CLI app to fetch and install agent skills."
-   :commands [{:name "greet"
-               :doc "Greet the user."
-               :run c/greet}]})
+   :commands [{:name "add"
+               :doc "Clone a git repo and install skills from it."
+               :args [{:key :url
+                       :doc "Git repository url."
+                       :validate {:pred non-blank?
+                                  :msg "URL is required."}}]
+               :opts [{:key :skill
+                       :short "s"
+                       :long "skill"
+                       :value? true
+                       :doc "Install exactly this skill (skips the picker)."}
+                      {:key :dir
+                       :short "d"
+                       :long "dir"
+                       :value? true
+                       :doc "Target install directory (skips the prompt)."}
+                      {:key :path
+                       :short "p"
+                       :long "path"
+                       :value? true
+                       :default "skills"
+                       :doc "Skills directory inside the source repo."}]
+               :run c/add!}]})
 
 (defn- main []
   (cli/run! app *command-line-args*))
