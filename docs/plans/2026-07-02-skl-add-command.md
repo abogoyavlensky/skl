@@ -189,7 +189,7 @@ of any widget is not an error — print a short notice and exit 0.
 - Create: `src/skl/commands.lg`
 - Test: `test/skl/commands_test.lg`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
   Structure `add!` as `(add! ctx)` calling `(add* ctx tui-opts)`, where
   `tui-opts` is merged into every tiny-tui call — tests pass
   `{:screen false :read-key-fn <scripted> :render-fn (fn [_] nil)}`.
@@ -210,11 +210,11 @@ of any widget is not an error — print a short notice and exit 0.
   Scripted `read-key-fn` pattern: an atom holding a queue of keys, fn pops
   one per call (see tiny-tui `test/tiny_tui/core_test.lg`).
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
   Run: `lgx test`
   Expected: FAIL (namespace `skl.commands` not found).
 
-- [ ] **Step 3: Implement `src/skl/commands.lg`**
+- [x] **Step 3: Implement `src/skl/commands.lg`**
   `add*` implements the Design flow §Flow steps 1–7: clone → list →
   select (or `--skill`) → target dir (or `--dir`) → per-skill
   conflict/copy loop → summary → cleanup in `finally`. Collect per-skill
@@ -223,11 +223,11 @@ of any widget is not an error — print a short notice and exit 0.
   tiny-cli handler: calls `add*` with `{}`, catches `ex-info`, prints
   message + stderr from ex-data to `*err*`, exits 1.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
   Run: `lgx test`
   Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   `git commit -m "Add skl add command flow"`
 
 ### Task 4: Wire the CLI, drop scaffold
