@@ -3,7 +3,8 @@
             [os :as os]
             [skl.git :as git]
             [skl.skills :as skills]
-            [tiny-tui.core :as tui]))
+            [tiny-tui.core :as tui]
+            [tiny-tui.path :as path]))
 
 (defn- resolve-skills
   "Which skills to install. With `skill-name`, exactly that one (throws, listing
@@ -33,6 +34,7 @@
               dir-opt
               (tui/input (merge {:title "Install skills to"
                                  :value ".agents/skills"
+                                 :suggest-fn (path/suggest-fn {:dirs-only? true})
                                  :validate (fn [t]
                                              (when (str/blank? t)
                                                "Target directory can't be empty"))}
