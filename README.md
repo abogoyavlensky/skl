@@ -27,19 +27,9 @@ Or pin a version in `.mise.toml`:
 
 ### Manual
 
-Download the archive for your platform from the
+[Download](./scripts/install.sh) the archive for your platform from the
 [releases page](https://github.com/abogoyavlensky/skl/releases), extract it,
-and put `skl` on your `PATH`:
-
-```sh
-VERSION=0.1.0
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')   # linux | darwin
-ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-curl -sSL -o skl.tar.gz \
-  "https://github.com/abogoyavlensky/skl/releases/download/v${VERSION}/skl_${VERSION}_${OS}_${ARCH}.tar.gz"
-tar -xzf skl.tar.gz
-mv skl ~/.local/bin/
-```
+and put `skl` on your `PATH`.
 
 ## Usage
 
@@ -50,8 +40,10 @@ Interactive — clone the repo, filter and multi-select skills, then choose a
 target directory:
 
 ```bash
-skl add https://github.com/owner/skills-repo
+skl add https://github.com/anthropics/skills
 ```
+
+![Interactive mode](./docs/images/screenshot.png)
 
 Non-interactive — name the skill and target with flags. Options come **before**
 the url (tiny-cli parses options ahead of positional arguments):

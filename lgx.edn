@@ -12,6 +12,7 @@
                       :type [:enum "fix" "check"]
                       :default "fix"}]
               :do [{:sh "cljfmt {{action}}"}]}
+         
          lint {:doc "Lint source files"
                :do [{:sh "find src test -type f -name '*.lg' -print0 | xargs -0 clj-kondo --lint"}]}
          
