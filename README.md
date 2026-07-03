@@ -1,6 +1,17 @@
 # skl
 
-A minimal single binary CLI app to fetch and install agent skills.
+A minimal single-binary CLI tool to fetch and install agent skills.
+
+## Quick start
+
+```sh
+brew install abogoyavlensky/tap/skl
+skl add https://github.com/anthropics/skills
+```
+
+This clones the repo to temp dir, lets you select skills interactively, and installs them into your target directory.
+
+![Interactive mode](./docs/images/screenshot.png)
 
 ## Installation
 
@@ -40,10 +51,8 @@ Interactive — clone the repo, filter and multi-select skills, then choose a
 target directory:
 
 ```bash
-skl add https://github.com/anthropics/skills
+skl add https://github.com/<owner>/<skills-repo>
 ```
-
-![Interactive mode](./docs/images/screenshot.png)
 
 Non-interactive — name the skill and target with flags. Options come **before**
 the url (tiny-cli parses options ahead of positional arguments):
