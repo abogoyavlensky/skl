@@ -1,6 +1,10 @@
 (ns skl.main
-  (:require [skl.commands :as c]
+  (:require [io :as io]
+            [skl.commands :as c]
             [tiny-cli.core :as cli]))
+
+(defn- version []
+  (io/slurp (io/resource "VERSION")))
 
 (defn- non-blank?
   [s]
@@ -8,7 +12,7 @@
 
 (def app
   {:name "skl"
-   :version "0.1.0"
+   :version (version)
    :doc "A minimal CLI app to fetch and install agent skills."
    :commands [{:name "add"
                :doc "Clone a git repo and install skills from it."

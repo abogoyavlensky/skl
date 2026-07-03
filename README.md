@@ -2,6 +2,45 @@
 
 A minimal single binary CLI app to fetch and install agent skills.
 
+## Installation
+
+### With [Homebrew](https://brew.sh)
+
+Works on macOS and Linux:
+
+```sh
+brew install abogoyavlensky/tap/skl
+```
+
+### With [mise](https://mise.jdx.dev)
+
+```sh
+mise use -g github:abogoyavlensky/skl@latest
+```
+
+Or pin a version in `.mise.toml`:
+
+```toml
+[tools]
+"github:abogoyavlensky/skl" = "latest"
+```
+
+### Manual
+
+Download the archive for your platform from the
+[releases page](https://github.com/abogoyavlensky/skl/releases), extract it,
+and put `skl` on your `PATH`:
+
+```sh
+VERSION=0.1.0
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')   # linux | darwin
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+curl -sSL -o skl.tar.gz \
+  "https://github.com/abogoyavlensky/skl/releases/download/v${VERSION}/skl_${VERSION}_${OS}_${ARCH}.tar.gz"
+tar -xzf skl.tar.gz
+mv skl ~/.local/bin/
+```
+
 ## Usage
 
 Install skills from any git repository that has a `skills/` directory — no
