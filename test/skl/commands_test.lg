@@ -103,6 +103,31 @@
         (finally
           (os/sh "rm" "-rf" src target))))))
 
+(deftest add-target-prompt-tab-completes-via-production-suggest-fn
+  ;; With :skill given but no :dir, the target prompt runs. No fake :suggest-fn
+  ;; is injected, so production's path/suggest-fn must drive completion: tab has
+  ;; to turn "<base>/" into "<base>/proj/". If resolve-target forgot to wire
+  ;; :suggest-fn, tab is a no-op and the install would land in "<base>/alpha".
+  ;; (:value is overridden via tui-opts, which merges after the base opts.)
+  (let [src (make-source-repo! ["alpha"])
+        base (fresh-target)]
+    (mkdir (str base "/proj"))
+    (let [ctx {:args {:url src}
+               :opts {:skill "alpha"
+                      :path "skills"}}
+          tui-opts (assoc quiet
+                          :value (str base "/")
+                          :read-key-fn (scripted [:tab :enter]))]
+      (try
+        (let [outcomes (cmds/add* ctx tui-opts)]
+          (is (= [{:skill "alpha"
+                   :status :installed}] outcomes))
+          (testing "tab completed into the subdir the suggest-fn offered"
+            (is (file-exists? (str base "/proj/alpha/SKILL.md")))
+            (is (not (file-exists? (str base "/alpha"))))))
+        (finally
+          (os/sh "rm" "-rf" src base))))))
+
 (deftest add-conflict-decline-skips-and-keeps-existing
   (let [src (make-source-repo! ["alpha"])
         target (fresh-target)]
