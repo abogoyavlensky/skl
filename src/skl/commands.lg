@@ -22,8 +22,7 @@
     (tui/multi-select (merge {:title "Select skills to install"
                               :items available
                               :item->text identity
-                              :filterable? true
-                              :inline? true}
+                              :filterable? true}
                              tui-opts))))
 
 (defn- resolve-target
