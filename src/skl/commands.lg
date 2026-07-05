@@ -74,8 +74,13 @@
 (defn- run-flow!
   "Steps 2-6 of the flow against an already-cloned `clone` dir: list skills
    under `--path`, resolve the selection and target, then copy each skill
-   (asking before overwriting). Returns the vector of per-skill outcome maps,
-   or `[]` when the user cancels. Throws ex-info on failure."
+   (asking before overwriting). Returns a status map and prints nothing — the
+   caller reports (via report!) after the inline session has closed, since a
+   println in raw mode won't return the carriage. Statuses:
+     {:status :empty}                       nothing selected
+     {:status :cancelled}                   target prompt cancelled
+     {:status :done :outcomes … :target …}  skills copied
+   Throws ex-info on failure."
   [clone opts tui-opts]
   (let [src-dir (skills/skills-dir clone (:path opts))
         available (skills/list-skills src-dir)]
@@ -85,18 +90,42 @@
                       {:dir src-dir})))
     (let [selected (resolve-skills available (:skill opts) tui-opts)]
       (if (empty? selected)
-        (do (println "Nothing selected.") [])
+        {:status :empty}
         (let [target (resolve-target (:dir opts) tui-opts)]
           (if (nil? target)
-            (do (println "Cancelled.") [])
+            {:status :cancelled}
             (do
               (skills/ensure-dir! target)
               (let [outcomes (mapv (fn [skill]
                                      (install-skill! src-dir target skill
                                                      tui-opts))
                                    selected)]
-                (print-summary! outcomes target)
-                outcomes))))))))
+                {:status :done
+                 :outcomes outcomes
+                 :target target}))))))))
+
+(defn- report!
+  "Print the flow's outcome (after the inline session has closed, so println
+   runs in cooked mode) and return the outcomes vector — `[]` when the user
+   selected nothing or cancelled — preserving add*'s return contract."
+  [result]
+  (case (:status result)
+    :empty (do (println "Nothing selected.") [])
+    :cancelled (do (println "Cancelled.") [])
+    :done (do (print-summary! (:outcomes result) (:target result))
+              (:outcomes result))))
+
+(defn- with-inline-flow
+  "Run the interactive flow `thunk` in one inline tiny-tui session (a single
+   raw-mode span the whole widget chain shares — no inter-widget flicker) when
+   running interactively in production. Skips the span when headless
+   (:screen false, tests) or fully non-interactive (both --skill and --dir
+   given, so at most a single standalone confirm renders): opening a session
+   there would demand a TTY that isn't needed."
+  [interactive? tui-opts thunk]
+  (if (and interactive? (not (false? (:screen tui-opts))))
+    (tui/with-inline-session (thunk))
+    (thunk)))
 
 (defn add*
   "Core `skl add` flow, decoupled from process exit so tests can drive it.
@@ -113,11 +142,16 @@
   [ctx tui-opts]
   (let [opts (:opts ctx)
         url (:url (:args ctx))
+        ;; A picker or prompt renders unless both --skill and --dir are given;
+        ;; that decides whether we open an inline session (see with-inline-flow).
+        interactive? (or (not (seq (:skill opts)))
+                         (not (seq (:dir opts))))
         clone (git/clone-shallow! url)]
     (try
-      (let [result (run-flow! clone opts tui-opts)]
+      (let [result (with-inline-flow interactive? tui-opts
+                     (fn [] (run-flow! clone opts tui-opts)))]
         (git/cleanup! clone)
-        result)
+        (report! result))
       (catch Exception e
         (git/cleanup! clone)
         (throw e)))))

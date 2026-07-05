@@ -1,5 +1,9 @@
 # Inline Session for `skl add`
 
+> ✅ **COMPLETED 2026-07-05.** All tasks done; fmt/lint/test green (18 tests,
+> 37 assertions, 0 failures), binary builds, codex second-opinion review clean.
+> See the implementation summary at the end of this document.
+
 > **For agentic workers:** Use executing-plans to implement this plan
 > task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -173,3 +177,43 @@ verification). Confirm it by hand in a real terminal:
 - [ ] `git add -A && git commit` with a concise message, e.g.
       `Run add flow in one inline tiny-tui session`. No attribution footer.
 - [ ] Mark this plan complete (add a short ✅ completion note at the top).
+
+---
+
+## Implementation Summary (2026-07-05)
+
+All six tasks completed. Changes were confined to `src/skl/commands.lg` as
+planned — no touch to `main.lg`, `git.lg`, `skills.lg`, `lgx.edn`, or tests.
+
+**What changed:**
+- `run-flow!` is now non-printing and returns a status map
+  (`{:status :empty}` / `{:status :cancelled}` / `{:status :done :outcomes … :target …}`).
+- New `report!` prints the outcome *after* the session closes (cooked mode) and
+  returns the outcomes vector, preserving `add*`'s return contract.
+- New `with-inline-flow` wraps the interactive flow in `tui/with-inline-session`
+  only when `interactive?` (a picker or prompt will render) **and** not headless
+  (`:screen false`). This keeps the whole widget chain in one flicker-free inline
+  span in production while preserving the no-TTY non-interactive path.
+- `add*` computes `interactive?` from opts, runs the (possibly session-wrapped)
+  flow, cleans up the clone, then `report!`s. The try/catch cleanup-and-rethrow
+  is unchanged.
+- The multi-select did **not** get `:inline? true` back — inside a session
+  tiny-tui's `run` detects the session and renders inline itself.
+
+**Verification:**
+- `lgx fmt fix`, `lgx lint` — clean.
+- `lgx test` — 18 tests, 37 assertions, 0 failures (unchanged; all drive
+  `:screen false`, exercising the no-session path).
+- `lgx build` — binary builds.
+- No-TTY regression check: `bin/skl add --skill demo --dir <t> <local-repo> </dev/null`
+  installs cleanly (exit 0, summary printed) — session gating preserved the
+  piped/non-interactive path.
+- Codex second-opinion review (uncommitted scope): no actionable findings.
+
+**Not verified here (needs a real terminal):** the fully-interactive inline
+flow (pick → target prompt → overwrite confirm → in-place summary, no flicker,
+no alt-screen). Run `bin/skl add https://github.com/anthropics/skills` in a real
+terminal to eyeball it.
+
+**Note:** tiny-tui v0.1.3's word-navigation (Option/Alt+←/→, Ctrl-W) was already
+active via the existing `lgx.edn` pin — no code change was needed for it.
